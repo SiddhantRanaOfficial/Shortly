@@ -22,6 +22,7 @@ app.use(cookieParser());
 
 // Import Routes
 import authRouter from "./routes/auth.routes.js";
+import urlRouter from "./routes/url.routes.js";
 
 // Health Check Route
 app.get("/health", (req, res) => {
@@ -41,6 +42,7 @@ app.get("/health", (req, res) => {
 
 // Routes Declaration
 app.use("/api/v1/auth", authRouter);
+app.use("/api/v1/urls", urlRouter);
 
 // Central Error Handler Middleware (Must be attached last)
 app.use(errorHandler);
