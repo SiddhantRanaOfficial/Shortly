@@ -94,9 +94,10 @@ const initRedis = () => {
     const client = new Redis(redisUri, {
       lazyConnect: true,
       maxRetriesPerRequest: 1,
+      connectTimeout: 500,
       retryStrategy(times) {
-        if (times > 2) return null; // Stop retrying quickly to trigger fallback
-        return Math.min(times * 100, 500);
+        if (times > 1) return null; // Stop retrying quickly to trigger fallback
+        return null;
       }
     });
 
