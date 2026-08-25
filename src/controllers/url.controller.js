@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateShortCode, isValidSlug, isValidUrl } from "../utils/base62.js";
+import CacheService from "../services/cache.service.js";
 
 /**
  * Create a new short URL
@@ -236,6 +237,10 @@ const updateUrl = asyncHandler(async (req, res) => {
 
   await url.save();
 
+  // Invalidate Redis Cache
+  await CacheService.invalidate(url.shortCode);
+  if (url.customSlug) await CacheService.invalidate(url.customSlug);
+
   const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 8000}`;
   const responseData = {
     ...url.toObject(),
@@ -269,6 +274,10 @@ const deleteUrl = asyncHandler(async (req, res) => {
 
   await Url.findByIdAndDelete(url._id);
 
+  // Invalidate Redis Cache
+  await CacheService.invalidate(url.shortCode);
+  if (url.customSlug) await CacheService.invalidate(url.customSlug);
+
   return res.status(200).json(
     new ApiResponse(200, {}, "Short URL deleted successfully")
   );
@@ -295,6 +304,10 @@ const toggleUrlStatus = asyncHandler(async (req, res) => {
 
   url.isActive = !url.isActive;
   await url.save();
+
+  // Invalidate Redis Cache
+  await CacheService.invalidate(url.shortCode);
+  if (url.customSlug) await CacheService.invalidate(url.customSlug);
 
   return res.status(200).json(
     new ApiResponse(
