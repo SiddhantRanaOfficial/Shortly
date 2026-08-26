@@ -23,6 +23,7 @@ app.use(cookieParser());
 // Import Routes
 import authRouter from "./routes/auth.routes.js";
 import urlRouter from "./routes/url.routes.js";
+import analyticsRouter from "./routes/analytics.routes.js";
 import redirectRouter from "./routes/redirect.routes.js";
 
 // Health Check Route
@@ -44,6 +45,7 @@ app.get("/health", (req, res) => {
 // Routes Declaration
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/urls", urlRouter);
+app.use("/api/v1/analytics", analyticsRouter);
 
 // Root Level Redirection Router (must be attached after API routes)
 app.use("/", redirectRouter);

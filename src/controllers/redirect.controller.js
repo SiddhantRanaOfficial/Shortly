@@ -3,6 +3,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { Url } from "../models/url.model.js";
 import CacheService from "../services/cache.service.js";
+import GeoService from "../services/geo.service.js";
+import analyticsQueue from "../services/analyticsQueue.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 
@@ -115,6 +117,14 @@ const handleRedirect = asyncHandler(async (req, res) => {
 
   // Increment click count asynchronously in MongoDB
   Url.findByIdAndUpdate(urlData._id, { $inc: { currentClicks: 1 } }).catch(() => {});
+
+  // Extract visitor metadata and push to non-blocking Analytics Queue
+  const visitorMetadata = GeoService.extractVisitorMetadata(req);
+  analyticsQueue.push({
+    urlId: urlData._id,
+    shortCode: urlData.shortCode,
+    ...visitorMetadata
+  });
 
   // Append UTM parameters if present
   let destinationUrl = urlData.originalUrl;
