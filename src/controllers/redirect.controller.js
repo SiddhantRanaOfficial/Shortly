@@ -108,7 +108,8 @@ const handleRedirect = asyncHandler(async (req, res) => {
       maxClicks: urlDoc.maxClicks,
       currentClicks: urlDoc.currentClicks,
       isActive: urlDoc.isActive,
-      password: urlDoc.password
+      password: urlDoc.password,
+      targetRules: urlDoc.targetRules || []
     };
 
     // Populate Redis Cache
@@ -126,8 +127,24 @@ const handleRedirect = asyncHandler(async (req, res) => {
     ...visitorMetadata
   });
 
-  // Append UTM parameters if present
+  // Evaluate Smart Geo & Device-based Routing Rules
   let destinationUrl = urlData.originalUrl;
+  if (urlData.targetRules && Array.isArray(urlData.targetRules)) {
+    for (const rule of urlData.targetRules) {
+      if (rule.type === "country" && rule.value && visitorMetadata.country) {
+        if (rule.value.toUpperCase() === visitorMetadata.country.toUpperCase()) {
+          destinationUrl = rule.targetUrl;
+          break;
+        }
+      }
+      if (rule.type === "device" && rule.value && visitorMetadata.device) {
+        if (rule.value.toLowerCase() === visitorMetadata.device.toLowerCase()) {
+          destinationUrl = rule.targetUrl;
+          break;
+        }
+      }
+    }
+  }
 
   // Set low latency redirect headers
   res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");

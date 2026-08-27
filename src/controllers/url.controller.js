@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { generateShortCode, isValidSlug, isValidUrl } from "../utils/base62.js";
+import { validateUrlSafety } from "../utils/urlSafety.js";
 import CacheService from "../services/cache.service.js";
 
 /**
@@ -21,11 +22,31 @@ const createShortUrl = asyncHandler(async (req, res) => {
     utmMedium,
     utmCampaign,
     utmTerm,
-    utmContent
+    utmContent,
+    targetRules
   } = req.body;
 
   if (!originalUrl || !isValidUrl(originalUrl)) {
     throw new ApiError(400, "Valid originalUrl is required (must start with http:// or https://)");
+  }
+
+  // Validate URL Safety & Loopback Prevention
+  const safetyCheck = validateUrlSafety(originalUrl);
+  if (!safetyCheck.isSafe) {
+    throw new ApiError(400, `URL Safety Check Failed: ${safetyCheck.reason}`);
+  }
+
+  // Validate any smart routing target rules
+  if (targetRules && Array.isArray(targetRules)) {
+    for (const rule of targetRules) {
+      if (!rule.type || !rule.value || !rule.targetUrl) {
+        throw new ApiError(400, "Each target rule must specify type, value, and targetUrl");
+      }
+      const ruleSafety = validateUrlSafety(rule.targetUrl);
+      if (!ruleSafety.isSafe) {
+        throw new ApiError(400, `Rule Target URL Safety Check Failed: ${ruleSafety.reason}`);
+      }
+    }
   }
 
   let code = "";
@@ -82,7 +103,8 @@ const createShortUrl = asyncHandler(async (req, res) => {
     expiresAt: expiresAt ? new Date(expiresAt) : null,
     maxClicks: maxClicks ? parseInt(maxClicks, 10) : 0,
     password: password || null,
-    utmParams
+    utmParams,
+    targetRules: targetRules || []
   });
 
   const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 8000}`;
@@ -197,7 +219,7 @@ const getUrlDetails = asyncHandler(async (req, res) => {
  */
 const updateUrl = asyncHandler(async (req, res) => {
   const { shortCode } = req.params;
-  const { originalUrl, expiresAt, maxClicks, isActive, password } = req.body;
+  const { originalUrl, expiresAt, maxClicks, isActive, password, targetRules } = req.body;
 
   const url = await Url.findOne({
     $or: [{ shortCode }, { customSlug: shortCode }]
@@ -216,7 +238,24 @@ const updateUrl = asyncHandler(async (req, res) => {
     if (!isValidUrl(originalUrl)) {
       throw new ApiError(400, "Invalid originalUrl format");
     }
+    const safetyCheck = validateUrlSafety(originalUrl);
+    if (!safetyCheck.isSafe) {
+      throw new ApiError(400, `URL Safety Check Failed: ${safetyCheck.reason}`);
+    }
     url.originalUrl = originalUrl.trim();
+  }
+
+  if (targetRules && Array.isArray(targetRules)) {
+    for (const rule of targetRules) {
+      if (!rule.type || !rule.value || !rule.targetUrl) {
+        throw new ApiError(400, "Each target rule must specify type, value, and targetUrl");
+      }
+      const ruleSafety = validateUrlSafety(rule.targetUrl);
+      if (!ruleSafety.isSafe) {
+        throw new ApiError(400, `Rule Target URL Safety Check Failed: ${ruleSafety.reason}`);
+      }
+    }
+    url.targetRules = targetRules;
   }
 
   if (expiresAt !== undefined) {

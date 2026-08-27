@@ -55,7 +55,26 @@ const urlSchema = new Schema(
       campaign: { type: String, default: "" },
       term: { type: String, default: "" },
       content: { type: String, default: "" }
-    }
+    },
+    targetRules: [
+      {
+        type: {
+          type: String,
+          enum: ["country", "device"],
+          required: true
+        },
+        value: {
+          type: String,
+          required: true,
+          trim: true
+        },
+        targetUrl: {
+          type: String,
+          required: true,
+          trim: true
+        }
+      }
+    ]
   },
   {
     timestamps: true
